@@ -2,47 +2,29 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>[제도전환대상] DB ↔ DC 비교 시뮬레이터</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    /* 인쇄 시 모달 내용만 A4 한 장으로 깔끔하게 출력 */
-    @media print {
-      body * {
-        visibility: hidden;
-      }
-      #modal-content, #modal-content * {
-        visibility: visible;
-      }
-      #modal-content {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-        box-shadow: none;
-        border: none;
-      }
-      .no-print {
-        display: none !important;
-      }
-    }
-  </style>
+  <!-- HTML2Canvas (모바일 이미지 저장용) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans p-3 sm:p-5 md:p-8">
-  <div class="max-w-6xl mx-auto space-y-4">
 
-    <!-- 1. 유의사항 -->
+  <!-- ========================================== -->
+  <!-- 1. 기본 시뮬레이터 화면 (입력 및 대시보드) -->
+  <!-- ========================================== -->
+  <div id="simul-view" class="max-w-6xl mx-auto space-y-4">
+
+    <!-- 유의사항 -->
     <div class="bg-amber-50 border border-amber-200 text-amber-900 px-3.5 py-2 rounded-xl text-[10.5px] sm:text-[11.5px] flex items-center gap-1.5 shadow-sm leading-normal">
       <span class="font-bold flex-shrink-0">⚠️ 유의사항:</span>
       <span class="text-amber-800">본 시뮬레이션 결과는 사규 및 지급율표 기준 단순 추정치이며, 통상임금 범위, 실제 정산일수, DC 운용실적 및 퇴직소득세에 따라 실제 수령액과 오차가 발생할 수 있습니다.</span>
     </div>
 
-    <!-- 2. Header -->
+    <!-- Header -->
     <header class="bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-3.5 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
       <div class="flex items-center gap-2.5">
         <span class="px-2.5 py-1 text-xs font-bold bg-indigo-100 text-indigo-700 rounded-lg flex-shrink-0">유한양행 전용</span>
@@ -132,7 +114,7 @@
             </div>
           </div>
 
-          <!-- 자동 계산된 근속기간 요약 카드 -->
+          <!-- 근속기간 요약 -->
           <div class="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs text-slate-600 space-y-1">
             <div class="flex justify-between">
               <span>피크 직전 유효 근속:</span>
@@ -282,206 +264,198 @@
 
     </div>
 
-    <!-- 비교분석 보고서 버튼 영역 -->
+    <!-- 하단 액션 버튼 -->
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-center gap-3">
       <div class="text-xs text-slate-500 text-center sm:text-left">
         상기 시뮬레이션 산출 내역과 유불리 분석결과 보고서를 생성합니다.
       </div>
-      <button onclick="openReportModal()" class="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-bold rounded-xl shadow-md transition-all flex-shrink-0">
+      <button onclick="showReportView()" class="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-bold rounded-xl shadow-md transition-all flex-shrink-0">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-        <span>비교분석 보고서</span>
+        <span>비교분석 보고서 보기</span>
       </button>
     </div>
 
   </div>
 
-  <!-- =================================================================== -->
-  <!-- 팝업 모달창 (화면에서 즉시 보고서 확인)                           -->
-  <!-- =================================================================== -->
-  <div id="report-modal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex justify-center items-start overflow-y-auto p-2 sm:p-4 md:p-6">
-    <div class="relative w-full max-w-4xl my-auto bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+  <!-- ======================================================== -->
+  <!-- 2. 보고서 전용 뷰 화면 (모바일에서도 100% 정상 작동)   -->
+  <!-- ======================================================== -->
+  <div id="report-view" class="hidden max-w-4xl mx-auto space-y-4">
+    
+    <!-- 상단 닫기/돌아가기 헤더 바 -->
+    <div class="sticky top-2 z-30 bg-slate-800/95 backdrop-blur text-white px-4 py-3 rounded-xl shadow-lg flex justify-between items-center">
+      <button onclick="hideReportView()" class="flex items-center gap-1.5 text-xs sm:text-sm font-bold bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg transition-colors">
+        ◀ 시뮬레이터로 돌아가기
+      </button>
+      <div class="flex items-center gap-2">
+        <button onclick="saveReportImage()" class="text-xs font-bold bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg transition-colors">
+          📷 이미지로 저장
+        </button>
+      </div>
+    </div>
+
+    <!-- 인쇄/열람 대상 보고서 카드 -->
+    <div id="report-card" class="bg-white rounded-2xl shadow-xl border border-slate-200 p-4 sm:p-7 md:p-9 space-y-4">
       
-      <!-- 모달 상단 조작바 (인쇄 시 숨김) -->
-      <div class="no-print bg-slate-800 text-white px-4 py-3 flex justify-between items-center">
-        <span class="text-xs sm:text-sm font-bold flex items-center gap-1.5">
-          📄 비교분석 컨설팅 보고서
-        </span>
-        <div class="flex items-center gap-2">
-          <button onclick="window.print()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-xs font-semibold rounded-lg flex items-center gap-1 transition-colors">
-            🖨️ 인쇄 / PDF 저장
-          </button>
-          <button onclick="closeReportModal()" class="p-1.5 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white transition-colors">
-            ✕
-          </button>
+      <!-- 보고서 헤더 -->
+      <div class="border-b-2 border-blue-600 pb-3 flex justify-between items-end">
+        <div>
+          <div class="flex items-center gap-1.5 mb-1">
+            <span class="text-[10px] font-extrabold text-white bg-blue-600 px-2 py-0.5 rounded">유한양행</span>
+            <span class="text-xs font-bold text-blue-600 tracking-wider">퇴직연금 제도 비교분석 컨설팅 리포트</span>
+          </div>
+          <h1 class="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+            [제도전환대상] DB ↔ DC 비교 시뮬레이터
+          </h1>
+        </div>
+        <div class="text-right text-[10px] text-slate-500 leading-tight">
+          <div>발행일자: <span id="rep-date" class="font-bold text-slate-700"></span></div>
+          <div>기준: 사규 누진율 및 정산보전형</div>
         </div>
       </div>
 
-      <!-- 모달 내부 보고서 본문 -->
-      <div id="modal-content" class="p-4 sm:p-6 md:p-8 bg-white max-h-[85vh] overflow-y-auto">
+      <!-- 유의사항 -->
+      <div class="bg-amber-50 border border-amber-200 px-3 py-2 text-[9px] sm:text-[10.5px] text-amber-900 rounded-lg leading-normal">
+        ※ 본 시뮬레이션 결과는 회사의 사규 및 지급율표를 기초로 산정한 단순 추정치이며, 통상임금 산정 범위, 최종 정산일수, 실제 운용수익률 및 퇴직소득세 등에 따라 실제 퇴직금 지급액과 오차가 발생할 수 있습니다.
+      </div>
+
+      <!-- 1. 기본 인적 및 근속/임금 조건 표 -->
+      <div>
+        <div class="flex justify-between items-center mb-1.5">
+          <h3 class="text-xs sm:text-sm font-extrabold text-slate-800 border-l-4 border-blue-600 pl-2">1. 근로 및 사규 적용 조건</h3>
+          <span id="rep-policy-tag" class="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200"></span>
+        </div>
+        <table class="w-full border-collapse text-[10.5px] sm:text-xs">
+          <tr class="bg-slate-50 border-t border-b border-slate-200">
+            <th class="p-2 text-left w-1/4 text-slate-600 font-semibold">입사일자</th>
+            <td class="p-2 w-1/4 font-semibold text-slate-900" id="rep-hire-date">-</td>
+            <th class="p-2 text-left w-1/4 text-slate-600 font-semibold">중간정산일자</th>
+            <td class="p-2 w-1/4 text-slate-800" id="rep-interim-date">해당 없음</td>
+          </tr>
+          <tr class="border-b border-slate-200">
+            <th class="p-2 text-left bg-slate-50 text-slate-600 font-semibold">피크 적용일 (정산일)</th>
+            <td class="p-2 font-semibold text-slate-900" id="rep-peak-date">-</td>
+            <th class="p-2 text-left bg-slate-50 text-slate-600 font-semibold">정년 퇴사일자</th>
+            <td class="p-2 font-semibold text-slate-900" id="rep-retire-date">-</td>
+          </tr>
+          <tr class="border-b border-slate-200">
+            <th class="p-2 text-left bg-slate-50 text-slate-600 font-semibold">피크 직전 유효근속</th>
+            <td class="p-2 font-bold text-blue-600" id="rep-pre-tenure">-</td>
+            <th class="p-2 text-left bg-slate-50 text-slate-600 font-semibold">사규 적용 누진배율</th>
+            <td class="p-2 font-bold text-blue-600" id="rep-multiplier">-</td>
+          </tr>
+          <tr class="border-b border-slate-300">
+            <th class="p-2 text-left bg-slate-50 text-slate-600 font-semibold">피크 전 월 평균임금</th>
+            <td class="p-2 font-semibold text-slate-900" id="rep-wage">-</td>
+            <th class="p-2 text-left bg-slate-50 text-slate-600 font-semibold">피크 감액률 / 기준 수익률</th>
+            <td class="p-2 text-slate-800" id="rep-discount-yield">-</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- 2. 제도별 최종 퇴직급여 비교 결과 -->
+      <div>
+        <h3 class="text-xs sm:text-sm font-extrabold text-slate-800 border-l-4 border-blue-600 pl-2 mb-2">2. 제도별 최종 퇴직급여 비교 결과</h3>
         
-        <!-- 상단 헤더 영역 -->
-        <div>
-          <div class="border-b-2 border-blue-600 pb-2 mb-3 flex justify-between items-end">
-            <div>
-              <div class="flex items-center gap-1.5 mb-1">
-                <span class="text-[10px] font-extrabold text-white bg-blue-600 px-2 py-0.5 rounded">유한양행</span>
-                <span class="text-xs font-bold text-blue-600 tracking-wider">퇴직연금 제도 비교분석 컨설팅 리포트</span>
-              </div>
-              <h1 class="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
-                [제도전환대상] DB ↔ DC 비교 시뮬레이터
-              </h1>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
+          <!-- DB 유지 시 -->
+          <div class="border border-slate-200 rounded-xl p-3 bg-slate-50">
+            <div class="flex justify-between items-baseline">
+              <span class="text-xs font-bold text-slate-600">[시나리오 A] DB 유지 시</span>
+              <span class="text-[10px] text-slate-400">정산보전+신규누적</span>
             </div>
-            <div class="text-right text-[10px] text-slate-500 leading-tight">
-              <div>발행일자: <span id="pdf-report-date" class="font-bold text-slate-700"></span></div>
-              <div>기준: 사규 누진율 및 정산보전형</div>
+            <div class="text-lg sm:text-xl font-extrabold text-slate-900 my-1" id="rep-db-total">0</div>
+            <div class="text-[10.5px] sm:text-xs text-slate-600 border-t border-slate-200 pt-1.5 mt-1 space-y-0.5">
+              <div class="flex justify-between"><span>• 피크 직전 정산 보전액:</span> <span id="rep-db-locked" class="font-semibold text-slate-800">0</span></div>
+              <div class="flex justify-between"><span>• 피크기간 신규 발생분:</span> <span id="rep-db-peak" class="font-semibold text-slate-800">0</span></div>
             </div>
           </div>
 
-          <!-- 유의사항 -->
-          <div class="bg-amber-50 border border-amber-200 px-3 py-1.5 text-[9px] sm:text-[10px] text-amber-900 mb-3 rounded-lg leading-normal">
-            ※ 본 시뮬레이션 결과는 회사의 사규 및 지급율표를 기초로 산정한 단순 추정치이며, 통상임금 산정 범위, 최종 정산일수, 실제 운용수익률 및 퇴직소득세 등에 따라 실제 퇴직금 지급액과 오차가 발생할 수 있습니다.
-          </div>
-
-          <!-- 1. 기본 인적 및 근속/임금 조건 표 -->
-          <div class="mb-4">
-            <div class="flex justify-between items-center mb-1.5">
-              <h3 class="text-xs sm:text-sm font-extrabold text-slate-800 border-l-4 border-blue-600 pl-2">1. 근로 및 사규 적용 조건</h3>
-              <span id="pdf-policy-tag" class="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200"></span>
+          <!-- DC 전환 시 -->
+          <div class="border-2 border-blue-300 rounded-xl p-3 bg-blue-50/70">
+            <div class="flex justify-between items-baseline">
+              <span class="text-xs font-bold text-blue-700">[시나리오 B] DC 전환 시</span>
+              <span class="text-[10px] text-blue-500 font-semibold">목돈 복리운용</span>
             </div>
-            <table class="w-full border-collapse text-[10px] sm:text-xs">
-              <tr class="bg-slate-50 border-t border-b border-slate-200">
-                <th class="p-2 text-left w-1/4 text-slate-600 font-semibold">입사일자</th>
-                <td class="p-2 w-1/4 font-semibold text-slate-900" id="pdf-hire-date">-</td>
-                <th class="p-2 text-left w-1/4 text-slate-600 font-semibold">중간정산일자</th>
-                <td class="p-2 w-1/4 text-slate-800" id="pdf-interim-date">해당 없음</td>
-              </tr>
-              <tr class="border-b border-slate-200">
-                <th class="p-2 text-left bg-slate-50 text-slate-600 font-semibold">피크 적용일 (정산일)</th>
-                <td class="p-2 font-semibold text-slate-900" id="pdf-peak-date">-</td>
-                <th class="p-2 text-left bg-slate-50 text-slate-600 font-semibold">정년 퇴사일자</th>
-                <td class="p-2 font-semibold text-slate-900" id="pdf-retire-date">-</td>
-              </tr>
-              <tr class="border-b border-slate-200">
-                <th class="p-2 text-left bg-slate-50 text-slate-600 font-semibold">피크 직전 유효근속</th>
-                <td class="p-2 font-bold text-blue-600" id="pdf-pre-tenure">-</td>
-                <th class="p-2 text-left bg-slate-50 text-slate-600 font-semibold">사규 적용 누진배율</th>
-                <td class="p-2 font-bold text-blue-600" id="pdf-multiplier">-</td>
-              </tr>
-              <tr class="border-b border-slate-300">
-                <th class="p-2 text-left bg-slate-50 text-slate-600 font-semibold">피크 전 월 평균임금</th>
-                <td class="p-2 font-semibold text-slate-900" id="pdf-wage">-</td>
-                <th class="p-2 text-left bg-slate-50 text-slate-600 font-semibold">피크 감액률 / 기준 수익률</th>
-                <td class="p-2 text-slate-800" id="pdf-discount-yield">-</td>
-              </tr>
-            </table>
-          </div>
-
-          <!-- 2. 제도별 최종 퇴직급여 비교 결과 -->
-          <div class="mb-4">
-            <h3 class="text-xs sm:text-sm font-extrabold text-slate-800 border-l-4 border-blue-600 pl-2 mb-2">2. 제도별 최종 퇴직급여 비교 결과</h3>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
-              <!-- DB 유지 시 -->
-              <div class="border border-slate-200 rounded-xl p-3 bg-slate-50">
-                <div class="flex justify-between items-baseline">
-                  <span class="text-xs font-bold text-slate-600">[시나리오 A] DB 유지 시</span>
-                  <span class="text-[10px] text-slate-400">정산보전+신규누적</span>
-                </div>
-                <div class="text-lg sm:text-xl font-extrabold text-slate-900 my-1" id="pdf-db-total">0</div>
-                <div class="text-[10px] sm:text-xs text-slate-600 border-t border-slate-200 pt-1.5 mt-1 space-y-0.5">
-                  <div class="flex justify-between"><span>• 피크 직전 정산 보전액:</span> <span id="pdf-db-locked" class="font-semibold text-slate-800">0</span></div>
-                  <div class="flex justify-between"><span>• 피크기간 신규 발생분:</span> <span id="pdf-db-peak" class="font-semibold text-slate-800">0</span></div>
-                </div>
-              </div>
-
-              <!-- DC 전환 시 -->
-              <div class="border-2 border-blue-300 rounded-xl p-3 bg-blue-50/70">
-                <div class="flex justify-between items-baseline">
-                  <span class="text-xs font-bold text-blue-700">[시나리오 B] DC 전환 시</span>
-                  <span class="text-[10px] text-blue-500 font-semibold">목돈 복리운용</span>
-                </div>
-                <div class="text-lg sm:text-xl font-extrabold text-blue-700 my-1" id="pdf-dc-total">0</div>
-                <div class="text-[10px] sm:text-xs text-blue-900 border-t border-blue-200 pt-1.5 mt-1 space-y-0.5">
-                  <div class="flex justify-between"><span>• 이전 정산원금:</span> <span id="pdf-dc-principal" class="font-semibold">0</span></div>
-                  <div class="flex justify-between"><span>• 목돈 운용 복리수익:</span> <span id="pdf-dc-interest" class="font-bold text-blue-600">+0</span></div>
-                  <div class="flex justify-between"><span>• 피크기간 부담금+수익:</span> <span id="pdf-dc-new" class="font-semibold">0</span></div>
-                </div>
-              </div>
+            <div class="text-lg sm:text-xl font-extrabold text-blue-700 my-1" id="rep-dc-total">0</div>
+            <div class="text-[10.5px] sm:text-xs text-blue-900 border-t border-blue-200 pt-1.5 mt-1 space-y-0.5">
+              <div class="flex justify-between"><span>• 이전 정산원금:</span> <span id="rep-dc-principal" class="font-semibold">0</span></div>
+              <div class="flex justify-between"><span>• 목돈 운용 복리수익:</span> <span id="rep-dc-interest" class="font-bold text-blue-600">+0</span></div>
+              <div class="flex justify-between"><span>• 피크기간 부담금+수익:</span> <span id="rep-dc-new" class="font-semibold">0</span></div>
             </div>
-
-            <!-- 차액 배너 -->
-            <div id="pdf-diff-box" class="p-2.5 rounded-xl border flex justify-between items-center bg-emerald-50 border-emerald-200 text-emerald-900">
-              <span class="text-xs sm:text-sm font-bold" id="pdf-diff-title">DC 전환 시 기대 차익:</span>
-              <span class="text-base sm:text-lg font-black" id="pdf-diff-val">0</span>
-            </div>
-          </div>
-
-          <!-- 3. 수익률별(4%, 5%, 6%, 7%) 비교 매트릭스 -->
-          <div class="mb-4">
-            <h3 class="text-xs sm:text-sm font-extrabold text-slate-800 border-l-4 border-blue-600 pl-2 mb-1.5">3. DC 포트폴리오 수익률별 예상 적립금 비교 (4% · 5% · 6% · 7%)</h3>
-            <table class="w-full border-collapse text-[10px] sm:text-xs text-center border border-slate-200 rounded-lg overflow-hidden">
-              <thead>
-                <tr class="bg-slate-100 border-b border-slate-200 text-slate-700">
-                  <th class="p-2 font-bold">포트폴리오 유형</th>
-                  <th class="p-2 font-bold">예상 연수익률</th>
-                  <th class="p-2 font-bold">최종 예상 퇴직금</th>
-                  <th class="p-2 font-bold text-blue-600">DB 유지 대비 초과수익</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-100">
-                <tr>
-                  <td class="p-2 font-semibold text-slate-600">원리금보장형</td>
-                  <td class="p-2 font-mono font-bold text-slate-800">연 4.0%</td>
-                  <td class="p-2 font-bold text-slate-900" id="table-rate-4-total">-</td>
-                  <td class="p-2 font-extrabold text-blue-600" id="table-rate-4-diff">-</td>
-                </tr>
-                <tr class="bg-slate-50">
-                  <td class="p-2 font-semibold text-slate-600">채권혼합형</td>
-                  <td class="p-2 font-mono font-bold text-slate-800">연 5.0%</td>
-                  <td class="p-2 font-bold text-slate-900" id="table-rate-5-total">-</td>
-                  <td class="p-2 font-extrabold text-blue-600" id="table-rate-5-diff">-</td>
-                </tr>
-                <tr>
-                  <td class="p-2 font-semibold text-slate-600">TDF 자산배분형</td>
-                  <td class="p-2 font-mono font-bold text-slate-800">연 6.0%</td>
-                  <td class="p-2 font-bold text-slate-900" id="table-rate-6-total">-</td>
-                  <td class="p-2 font-extrabold text-blue-600" id="table-rate-6-diff">-</td>
-                </tr>
-                <tr class="bg-blue-50/50">
-                  <td class="p-2 font-semibold text-slate-600">적극투자형 (지수)</td>
-                  <td class="p-2 font-mono font-bold text-blue-700">연 7.0%</td>
-                  <td class="p-2 font-bold text-blue-700" id="table-rate-7-total">-</td>
-                  <td class="p-2 font-extrabold text-blue-700" id="table-rate-7-diff">-</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- 4. 연도별 누적 자산 추이 그래프 -->
-          <div class="mb-4">
-            <h3 class="text-xs sm:text-sm font-extrabold text-slate-800 border-l-4 border-blue-600 pl-2 mb-1.5">4. 연도별 누적 자산 추이 비교</h3>
-            <div class="h-48 sm:h-56 border border-slate-200 rounded-xl p-2 bg-white">
-              <img id="pdf-chart-img" class="h-full w-full object-contain mx-auto" alt="비교 그래프">
-            </div>
-          </div>
-
-          <!-- 5. 유불리 분석 및 포인트 종합 의견 -->
-          <div class="border border-indigo-200 rounded-xl p-3 sm:p-4 bg-indigo-50/60">
-            <h3 class="text-xs sm:text-sm font-extrabold text-indigo-900 mb-1.5">📌 제도별 유불리 분석 및 핵심 포인트</h3>
-            <ul class="text-[10px] sm:text-xs text-indigo-950 space-y-1 pl-4 list-disc leading-relaxed">
-              <li><strong>손익분기(BEP) 연수익률:</strong> DC 전환 후 연 <strong id="pdf-bep-rate" class="text-blue-600">0.0%</strong> 이상 달성 시 DB 유지 대비 유리한 자산이 형성됩니다.</li>
-              <li><strong>정산 보전금의 자본력:</strong> 임금피크 전 누진율이 적용된 확정 퇴직금은 대규모 목돈 형태로 DC에 유입됩니다. 피크 직전 정산금을 DC로 이전할 경우 <strong>대규모 목돈을 원금손실이 없는 원리금보장형으로 운용가능합니다.</strong></li>
-              <li><strong>최종 제언:</strong> 안전한 원리금보장형(연 4.0%)만 유지해도 DB 유지 대비 확정적인 초과 수익이 발생하므로, DC 제도로의 전환이 유리합니다.</li>
-            </ul>
           </div>
         </div>
 
-        <!-- 최하단 푸터 -->
-        <div class="border-t border-slate-200 pt-3 mt-4 flex justify-between text-[9px] text-slate-400">
-          <span>퇴직연금 DB/DC 제도 전환 솔루션</span>
-          <span>공식 컨설팅 리포트 | Confidential</span>
+        <!-- 차액 배너 -->
+        <div id="rep-diff-box" class="p-3 rounded-xl border flex justify-between items-center bg-emerald-50 border-emerald-200 text-emerald-900">
+          <span class="text-xs sm:text-sm font-bold" id="rep-diff-title">DC 전환 시 기대 차익:</span>
+          <span class="text-base sm:text-lg font-black" id="rep-diff-val">0</span>
         </div>
+      </div>
 
+      <!-- 3. 수익률별(4%, 5%, 6%, 7%) 비교 매트릭스 -->
+      <div>
+        <h3 class="text-xs sm:text-sm font-extrabold text-slate-800 border-l-4 border-blue-600 pl-2 mb-1.5">3. DC 포트폴리오 수익률별 예상 적립금 비교 (4% · 5% · 6% · 7%)</h3>
+        <table class="w-full border-collapse text-[10.5px] sm:text-xs text-center border border-slate-200 rounded-lg overflow-hidden">
+          <thead>
+            <tr class="bg-slate-100 border-b border-slate-200 text-slate-700">
+              <th class="p-2 font-bold">포트폴리오 유형</th>
+              <th class="p-2 font-bold">예상 연수익률</th>
+              <th class="p-2 font-bold">최종 예상 퇴직금</th>
+              <th class="p-2 font-bold text-blue-600">DB 유지 대비 초과수익</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr>
+              <td class="p-2 font-semibold text-slate-600">원리금보장형</td>
+              <td class="p-2 font-mono font-bold text-slate-800">연 4.0%</td>
+              <td class="p-2 font-bold text-slate-900" id="rep-rate-4-total">-</td>
+              <td class="p-2 font-extrabold text-blue-600" id="rep-rate-4-diff">-</td>
+            </tr>
+            <tr class="bg-slate-50">
+              <td class="p-2 font-semibold text-slate-600">채권혼합형</td>
+              <td class="p-2 font-mono font-bold text-slate-800">연 5.0%</td>
+              <td class="p-2 font-bold text-slate-900" id="rep-rate-5-total">-</td>
+              <td class="p-2 font-extrabold text-blue-600" id="rep-rate-5-diff">-</td>
+            </tr>
+            <tr>
+              <td class="p-2 font-semibold text-slate-600">TDF 자산배분형</td>
+              <td class="p-2 font-mono font-bold text-slate-800">연 6.0%</td>
+              <td class="p-2 font-bold text-slate-900" id="rep-rate-6-total">-</td>
+              <td class="p-2 font-extrabold text-blue-600" id="rep-rate-6-diff">-</td>
+            </tr>
+            <tr class="bg-blue-50/50">
+              <td class="p-2 font-semibold text-slate-600">적극투자형 (지수)</td>
+              <td class="p-2 font-mono font-bold text-blue-700">연 7.0%</td>
+              <td class="p-2 font-bold text-blue-700" id="rep-rate-7-total">-</td>
+              <td class="p-2 font-extrabold text-blue-700" id="rep-rate-7-diff">-</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 4. 연도별 누적 자산 추이 그래프 -->
+      <div>
+        <h3 class="text-xs sm:text-sm font-extrabold text-slate-800 border-l-4 border-blue-600 pl-2 mb-1.5">4. 연도별 누적 자산 추이 비교</h3>
+        <div class="h-52 sm:h-64 border border-slate-200 rounded-xl p-2 bg-white">
+          <img id="rep-chart-img" class="h-full w-full object-contain mx-auto" alt="비교 그래프">
+        </div>
+      </div>
+
+      <!-- 5. 유불리 분석 및 포인트 종합 의견 -->
+      <div class="border border-indigo-200 rounded-xl p-3.5 sm:p-4 bg-indigo-50/60">
+        <h3 class="text-xs sm:text-sm font-extrabold text-indigo-900 mb-1.5">📌 제도별 유불리 분석 및 핵심 포인트</h3>
+        <ul class="text-[10px] sm:text-xs text-indigo-950 space-y-1 pl-4 list-disc leading-relaxed">
+          <li><strong>손익분기(BEP) 연수익률:</strong> DC 전환 후 연 <strong id="rep-bep-rate" class="text-blue-600">0.0%</strong> 이상 달성 시 DB 유지 대비 유리한 자산이 형성됩니다.</li>
+          <li><strong>정산 보전금의 자본력:</strong> 임금피크 전 누진율이 적용된 확정 퇴직금은 대규모 목돈 형태로 DC에 유입됩니다. 피크 직전 정산금을 DC로 이전할 경우 <strong>대규모 목돈을 원금손실이 없는 원리금보장형으로 운용가능합니다.</strong></li>
+          <li><strong>최종 제언:</strong> 안전한 원리금보장형(연 4.0%)만 유지해도 DB 유지 대비 확정적인 초과 수익이 발생하므로, DC 제도로의 전환이 유리합니다.</li>
+        </ul>
+      </div>
+
+      <!-- 최하단 푸터 -->
+      <div class="border-t border-slate-200 pt-3 flex justify-between text-[9px] text-slate-400">
+        <span>퇴직연금 DB/DC 제도 전환 솔루션</span>
+        <span>공식 컨설팅 리포트 | Confidential</span>
       </div>
 
     </div>
@@ -761,8 +735,8 @@
 
       renderChart(lockedRetirementPay, totalDbPay, totalDcPay, peakTenure);
 
-      // 모달/보고서 템플릿 데이터 업데이트
-      updateReportTemplateData({
+      // 보고서 화면 데이터 실시간 업데이트
+      updateReportData({
         isBefore2003,
         hireDateStr,
         interimDateStr,
@@ -853,11 +827,11 @@
       });
     }
 
-    function updateReportTemplateData(d) {
+    function updateReportData(d) {
       const today = new Date();
-      document.getElementById('pdf-report-date').innerText = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
+      document.getElementById('rep-date').innerText = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
-      document.getElementById('pdf-policy-tag').innerText = d.isBefore2003 
+      document.getElementById('rep-policy-tag').innerText = d.isBefore2003 
         ? '사규: 2002.12.31 이전 입사자' 
         : '사규: 2003.01.01 이후 입사자';
 
@@ -870,78 +844,88 @@
         return str;
       };
 
-      document.getElementById('pdf-hire-date').innerText = formatDisplayDate(d.hireDateStr);
-      document.getElementById('pdf-interim-date').innerText = d.interimDateStr ? formatDisplayDate(d.interimDateStr) : '해당 없음 (입사일 기산)';
-      document.getElementById('pdf-peak-date').innerText = formatDisplayDate(d.peakDateStr);
-      document.getElementById('pdf-retire-date').innerText = formatDisplayDate(d.retireDateStr);
+      document.getElementById('rep-hire-date').innerText = formatDisplayDate(d.hireDateStr);
+      document.getElementById('rep-interim-date').innerText = d.interimDateStr ? formatDisplayDate(d.interimDateStr) : '해당 없음 (입사일 기산)';
+      document.getElementById('rep-peak-date').innerText = formatDisplayDate(d.peakDateStr);
+      document.getElementById('rep-retire-date').innerText = formatDisplayDate(d.retireDateStr);
 
-      document.getElementById('pdf-pre-tenure').innerText = `${d.preYears}년 ${d.preMonths}개월`;
-      document.getElementById('pdf-multiplier').innerText = `${d.preMultiplier.toFixed(2)} 배`;
-      document.getElementById('pdf-wage').innerText = `${d.baseWage.toLocaleString()} 만원`;
-      document.getElementById('pdf-discount-yield').innerText = `감액 ${d.peakDiscount}% / DC 연 ${d.dcYield}%`;
+      document.getElementById('rep-pre-tenure').innerText = `${d.preYears}년 ${d.preMonths}개월`;
+      document.getElementById('rep-multiplier').innerText = `${d.preMultiplier.toFixed(2)} 배`;
+      document.getElementById('rep-wage').innerText = `${d.baseWage.toLocaleString()} 만원`;
+      document.getElementById('rep-discount-yield').innerText = `감액 ${d.peakDiscount}% / DC 연 ${d.dcYield}%`;
 
-      document.getElementById('pdf-db-total').innerText = formatKoreanMoney(d.totalDbPay);
-      document.getElementById('pdf-db-locked').innerText = formatKoreanMoney(d.lockedRetirementPay);
-      document.getElementById('pdf-db-peak').innerText = formatKoreanMoney(d.peakDbPay);
+      document.getElementById('rep-db-total').innerText = formatKoreanMoney(d.totalDbPay);
+      document.getElementById('rep-db-locked').innerText = formatKoreanMoney(d.lockedRetirementPay);
+      document.getElementById('rep-db-peak').innerText = formatKoreanMoney(d.peakDbPay);
 
-      document.getElementById('pdf-dc-total').innerText = formatKoreanMoney(d.totalDcPay);
-      document.getElementById('pdf-dc-principal').innerText = formatKoreanMoney(d.lockedRetirementPay);
-      document.getElementById('pdf-dc-interest').innerText = `+${formatKoreanMoney(d.dcInterest)}`;
-      document.getElementById('pdf-dc-new').innerText = formatKoreanMoney(d.accumulatedDcNew);
+      document.getElementById('rep-dc-total').innerText = formatKoreanMoney(d.totalDcPay);
+      document.getElementById('rep-dc-principal').innerText = formatKoreanMoney(d.lockedRetirementPay);
+      document.getElementById('rep-dc-interest').innerText = `+${formatKoreanMoney(d.dcInterest)}`;
+      document.getElementById('rep-dc-new').innerText = formatKoreanMoney(d.accumulatedDcNew);
 
-      const diffBox = document.getElementById('pdf-diff-box');
-      const diffTitle = document.getElementById('pdf-diff-title');
-      const diffVal = document.getElementById('pdf-diff-val');
+      const diffBox = document.getElementById('rep-diff-box');
+      const diffTitle = document.getElementById('rep-diff-title');
+      const diffVal = document.getElementById('rep-diff-val');
 
       if (d.diff >= 0) {
-        diffBox.className = 'p-2.5 rounded-xl border flex justify-between items-center bg-emerald-50 border-emerald-200 text-emerald-900';
+        diffBox.className = 'p-3 rounded-xl border flex justify-between items-center bg-emerald-50 border-emerald-200 text-emerald-900';
         diffTitle.innerText = 'DC 전환 시 기대 차익:';
         diffVal.innerText = `+${formatKoreanMoney(d.diff)}`;
       } else {
-        diffBox.className = 'p-2.5 rounded-xl border flex justify-between items-center bg-rose-50 border-rose-200 text-rose-900';
+        diffBox.className = 'p-3 rounded-xl border flex justify-between items-center bg-rose-50 border-rose-200 text-rose-900';
         diffTitle.innerText = 'DB 유지 대비 부족액:';
         diffVal.innerText = formatKoreanMoney(d.diff);
       }
 
-      document.getElementById('pdf-bep-rate').innerText = `${d.bepYield}%`;
+      document.getElementById('rep-bep-rate').innerText = `${d.bepYield}%`;
 
-      // 4%, 5%, 6%, 7% 매트릭스 테이블 바인딩
-      document.getElementById('table-rate-4-total').innerText = formatKoreanMoney(d.dc4);
-      document.getElementById('table-rate-4-diff').innerText = `+${formatKoreanMoney(d.diff4)}`;
+      document.getElementById('rep-rate-4-total').innerText = formatKoreanMoney(d.dc4);
+      document.getElementById('rep-rate-4-diff').innerText = `+${formatKoreanMoney(d.diff4)}`;
 
-      document.getElementById('table-rate-5-total').innerText = formatKoreanMoney(d.dc5);
-      document.getElementById('table-rate-5-diff').innerText = `+${formatKoreanMoney(d.diff5)}`;
+      document.getElementById('rep-rate-5-total').innerText = formatKoreanMoney(d.dc5);
+      document.getElementById('rep-rate-5-diff').innerText = `+${formatKoreanMoney(d.diff5)}`;
 
-      document.getElementById('table-rate-6-total').innerText = formatKoreanMoney(d.dc6);
-      document.getElementById('table-rate-6-diff').innerText = `+${formatKoreanMoney(d.diff6)}`;
+      document.getElementById('rep-rate-6-total').innerText = formatKoreanMoney(d.dc6);
+      document.getElementById('rep-rate-6-diff').innerText = `+${formatKoreanMoney(d.diff6)}`;
 
-      document.getElementById('table-rate-7-total').innerText = formatKoreanMoney(d.dc7);
-      document.getElementById('table-rate-7-diff').innerText = `+${formatKoreanMoney(d.diff7)}`;
+      document.getElementById('rep-rate-7-total').innerText = formatKoreanMoney(d.dc7);
+      document.getElementById('rep-rate-7-diff').innerText = `+${formatKoreanMoney(d.diff7)}`;
     }
 
-    // 모달 열기 함수 (화면 팝업 표시)
-    function openReportModal() {
-      // 실시간 차트 이미지를 복사해 모달 안의 이미지 태그에 전달
+    // 보고서 화면 보기 (모바일에서 화면 전환)
+    function showReportView() {
+      // 차트 복사
       const chartCanvas = document.getElementById('comparisonChart');
-      const chartImg = document.getElementById('pdf-chart-img');
-      chartImg.src = chartCanvas.toDataURL('image/png', 1.0);
+      document.getElementById('rep-chart-img').src = chartCanvas.toDataURL('image/png', 1.0);
 
-      document.getElementById('report-modal').classList.remove('hidden');
-      document.body.style.overflow = 'hidden'; // 배경 스크롤 방지
+      document.getElementById('simul-view').classList.add('hidden');
+      document.getElementById('report-view').classList.remove('hidden');
+      window.scrollTo(0, 0);
     }
 
-    // 모달 닫기 함수
-    function closeReportModal() {
-      document.getElementById('report-modal').classList.add('hidden');
-      document.body.style.overflow = '';
+    // 시뮬레이터로 돌아가기
+    function hideReportView() {
+      document.getElementById('report-view').classList.add('hidden');
+      document.getElementById('simul-view').classList.remove('hidden');
+      window.scrollTo(0, 0);
     }
 
-    // 모달 바깥 배경 클릭 시 닫기
-    document.getElementById('report-modal').addEventListener('click', function(e) {
-      if (e.target === this) {
-        closeReportModal();
-      }
-    });
+    // 보고서 영역을 깔끔한 PNG 이미지로 스마트폰 갤러리에 저장
+    function saveReportImage() {
+      const card = document.getElementById('report-card');
+      html2canvas(card, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `[유한양행]_퇴직연금_비교분석보고서_${new Date().toISOString().slice(0, 10)}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      }).catch(err => {
+        alert('이미지 저장 중 오류가 발생했습니다. 화면을 캡처해서 보관하셔도 좋습니다.');
+      });
+    }
 
     window.addEventListener('DOMContentLoaded', () => {
       setupSmartDateInputs();
