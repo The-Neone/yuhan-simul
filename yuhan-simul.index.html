@@ -499,16 +499,17 @@
       const hireDate = new Date(hireDateStr);
       const isBefore2003 = hireDate <= new Date('2002-12-31');
 
+      // 뱃지에서 '(최대 54배)' 및 '(최대 46배)' 삭제
       const badgeContainer = document.getElementById('badge-policy');
       if (isBefore2003) {
         badgeContainer.innerHTML = `
           <span class="inline-block text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 whitespace-nowrap">
-            [별표] 2002.12.31 이전 입사자 규정 (최대 54배)
+            [별표] 2002.12.31 이전 입사자 규정
           </span>`;
       } else {
         badgeContainer.innerHTML = `
           <span class="inline-block text-xs font-bold text-blue-800 bg-blue-50 px-3 py-1 rounded-lg border border-blue-200 whitespace-nowrap">
-            [별표] 2003.01.01 이후 입사자 규정 (최대 46배)
+            [별표] 2003.01.01 이후 입사자 규정
           </span>`;
       }
 
@@ -693,9 +694,10 @@
       const today = new Date();
       document.getElementById('pdf-report-date').innerText = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
+      // PDF 내 사규 태그에서도 '(최대 54배)' 및 '(최대 46배)' 삭제
       document.getElementById('pdf-policy-tag').innerText = d.isBefore2003 
-        ? '사규: 2002.12.31 이전 입사자 (최대 54배)' 
-        : '사규: 2003.01.01 이후 입사자 (최대 46배)';
+        ? '사규: 2002.12.31 이전 입사자' 
+        : '사규: 2003.01.01 이후 입사자';
 
       document.getElementById('pdf-hire-date').innerText = d.hireDateStr;
       document.getElementById('pdf-interim-date').innerText = d.interimDateStr ? d.interimDateStr : '해당 없음 (입사일 기산)';
@@ -739,7 +741,7 @@
       document.getElementById('pdf-bep-rate').innerText = `${d.bepYield}%`;
     }
 
-    // PDF 다운로드 실행 (A4 세로 중앙 균형 배치 & 잘림 방지)
+    // PDF 다운로드 실행
     function downloadPdfReport() {
       const chartCanvas = document.getElementById('comparisonChart');
       const chartImg = document.getElementById('pdf-chart-img');
@@ -748,7 +750,6 @@
       const wrapper = document.getElementById('pdf-wrapper');
       const element = document.getElementById('pdf-report');
 
-      // html2canvas 좌표 보정: 화면 최상단 임시 노출
       wrapper.style.position = 'fixed';
       wrapper.style.left = '50%';
       wrapper.style.transform = 'translateX(-50%)';
